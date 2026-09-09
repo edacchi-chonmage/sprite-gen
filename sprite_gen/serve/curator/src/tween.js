@@ -75,7 +75,7 @@ function makeTweenButton(stateName) {
   const fromInput = field(t("tweenFrom"), 0, 1, 0);
   const toInput = field(t("tweenTo"), 1, 1, 0);
   const tInput = field(t("tweenT"), 0.5, 0.05, 0.05, 0.95);
-  const providerSel = makeProviderSelect(); // 모델 선택/실행 관용구 SSoT = gen-trigger.js
+  const providerSel = makeProviderSelect(GEN_INTERPOLATION_PROVIDERS); // 모델 선택/실행 관용구 SSoT = gen-trigger.js
   pop.appendChild(providerSel);
   const go = document.createElement("button");
   go.type = "button";

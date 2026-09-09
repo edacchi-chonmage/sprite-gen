@@ -26,6 +26,8 @@ Ask an image model for a "sprite sheet" and you know what you get: a character w
 
 ## Four pipelines, one CLI
 
+このforkの追加機能：[Orca・Claude SonnetとImages 2.5による制作チャット](docs/chat-studio.md)。自然言語から素材確認・生成指示の作成・画像生成・中間コマ追加・停止コマ調整・比較まで進める。
+
 Every verb works alone or as a pipeline stage. `sprite-gen --help` prints this same map, with every verb grouped by domain.
 
 ```mermaid

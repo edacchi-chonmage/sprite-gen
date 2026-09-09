@@ -1496,7 +1496,7 @@ class CurationHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": f"t must be inside (0, 1): {t_value}"}, 400)
                     return
                 provider = str(payload.get("provider") or "codex")
-                if provider not in ("codex", "grok"):
+                if provider not in ("codex", "grok", "openai"):
                     self._send_json({"error": f"unknown provider: {provider}"}, 400)
                     return
                 result = run_interpolate(self.run_dir, state, index_a, index_b,

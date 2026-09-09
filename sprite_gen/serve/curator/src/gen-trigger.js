@@ -14,10 +14,15 @@ const GEN_PROVIDERS = [
   { value: "grok", label: "Grok" },
 ];
 
+const GEN_INTERPOLATION_PROVIDERS = [
+  ...GEN_PROVIDERS,
+  { value: "openai", label: "Images 2.5 (API)" },
+];
+
 // 공용 모델 선택 위젯 — 표기/순서/기본값(codex)의 유일한 자리
-function makeProviderSelect() {
+function makeProviderSelect(providers = GEN_PROVIDERS) {
   const sel = document.createElement("select");
-  for (const p of GEN_PROVIDERS) {
+  for (const p of providers) {
     const opt = document.createElement("option");
     opt.value = p.value;
     opt.textContent = p.label;

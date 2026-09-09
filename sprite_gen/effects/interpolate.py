@@ -21,7 +21,7 @@ provider 가 요란하게 실패하고 그 메시지가 CLI/뷰 상태줄에 그
 
 사용:
     python3 scripts/interpolate_frames.py --run-dir <run> --state down_idle \
-        --between 1 2 [--provider codex|grok] [--t 0.5] [--label blink_mid] [--extract]
+        --between 1 2 [--provider codex|grok|openai] [--t 0.5] [--label blink_mid] [--extract]
 
 - `--between A B`: 그 상태 primary 스트립의 프레임 인덱스 두 개 (추출된 컴포넌트 순서).
 - `--provider`: 생성 백엔드 (기본 codex — 3-way 비교 승자).
@@ -49,13 +49,14 @@ from sprite_gen.frames.extract import (extract_component_images, register_row_fr
 from sprite_gen.spec.layout import raw_rel, take_raw_rel
 from sprite_gen.spec.runio import load_request, write_request
 
-PROVIDERS = ("codex", "grok")
+PROVIDERS = ("codex", "grok", "openai")
 
 # interpolator 시그니처: (img0 RGB, img1 RGB, t, prompt) -> mid RGB. 테스트는 스텁을 주입한다.
 Interpolator = Callable[[Image.Image, Image.Image, float, str], Image.Image]
 
 
-def gen_interpolator(provider: str = "codex") -> Interpolator:
+def gen_interpolator(provider: str = "codex",
+                     evidence_dir: Path | None = None) -> Interpolator:
     """생성형 in-between interpolator — 두 정합 프레임을 ref 로 물려 중간 포즈를 그리게 한다."""
     if provider not in PROVIDERS:
         raise SystemExit(f"unknown interpolation provider: {provider} (choose from {PROVIDERS})")
@@ -64,12 +65,20 @@ def gen_interpolator(provider: str = "codex") -> Interpolator:
     def run(img0: Image.Image, img1: Image.Image, t: float, prompt: str) -> Image.Image:
         workdir = Path(tempfile.mkdtemp(prefix="sprite-gen-tween-"))
         try:
-            ref_a = workdir / "ref-a.png"
-            ref_b = workdir / "ref-b.png"
-            out = workdir / "mid.png"
+            destination = Path(evidence_dir).resolve() if evidence_dir is not None else workdir
+            # Check/create the persistent destination before making a paid request.
+            destination.mkdir(parents=True, exist_ok=True)
+            ref_a = destination / "ref-a.png"
+            ref_b = destination / "ref-b.png"
+            out = destination / ("generated.png" if evidence_dir is not None else "mid.png")
             img0.save(ref_a)
             img1.save(ref_b)
-            generate_image(provider, prompt, out, refs=[ref_a, ref_b])
+            result = generate_image(provider, prompt, out, refs=[ref_a, ref_b])
+            if evidence_dir is not None:
+                (destination / "generation.json").write_text(
+                    json.dumps(result.to_dict(), ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
             with Image.open(out) as image:
                 return image.convert("RGB").copy()
         finally:
@@ -206,7 +215,9 @@ def write_take(run_dir: Path, request: dict[str, Any], state: str, label: str,
 def interpolate_between(run_dir: Path | str, state: str, index_a: int, index_b: int,
                         t: float = 0.5, label: str | None = None,
                         provider: str = "codex",
-                        interpolator: Interpolator | None = None) -> Path:
+                        interpolator: Interpolator | None = None,
+                        evidence_dir: Path | None = None,
+                        prompt: str | None = None) -> Path:
     """두 프레임 사이 중간 프레임을 만들어 테이크로 기록한다. 반환 = 테이크 raw 경로."""
     run_dir = Path(run_dir)
     # 읽기는 게이트만 (`load_request`): raw 로 읽으면 은퇴 키 런에서 이관이 비껴간다 —
@@ -223,8 +234,11 @@ def interpolate_between(run_dir: Path | str, state: str, index_a: int, index_b: 
     frame_count = int(request["states"][state]["frames"])
     strip = Image.open(strip_path).convert("RGBA")
     img0, img1 = aligned_pair_on_chroma(strip, frame_count, index_a, index_b, chroma_rgb)
-    run = interpolator or gen_interpolator(provider)
-    mid = run(img0, img1, t, tween_prompt(request, t))
+    run = interpolator or gen_interpolator(provider, evidence_dir=evidence_dir)
+    full_prompt = tween_prompt(request, t)
+    if prompt and prompt.strip():
+        full_prompt += "\n\nAdditional motion instructions:\n" + prompt.strip()
+    mid = run(img0, img1, t, full_prompt)
     mid = normalize_tween_scale(mid, img0, img1, chroma_rgb)
     label = label or f"tween_{index_a}_{index_b}_t{t:g}".replace(".", "p")
     if "/" in label or label.startswith("."):

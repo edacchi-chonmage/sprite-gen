@@ -20,6 +20,10 @@ in the play sequence like any other take frame.
 The backend is the engine's own generation layer (`sprite_gen.gen`): the two aligned
 frames go in as reference images and the model **draws** the in-between pose.
 Default provider `codex` (GPT `image_gen`); `--provider grok` selects xAI Imagine.
+`--provider openai` uses the Images API with `gpt-image-2.5-sunburst`.
+Both reference PNGs are attached to `/v1/images/edits`; the server needs
+`OPENAI_API_KEY` in its environment. The browser never receives the key.
+This is a paid API request with no automatic retry.
 
 Flow-based VFI (RIFE) was retired (maintainer, 2026-07-17). Rationale, measured on a
 real 3-way comparison (hero down_action arm swing, sheet `tween-3way-compare.png`
@@ -29,7 +33,7 @@ clean discrete pixels. codex preserved identity best; grok drifted; RIFE smeared
 
 ## Auth prerequisites (applies to the curator Tween button too)
 
-Generation always runs on the **server machine's provider CLI** — the browser/webview
+Codex/Grok generation runs on the **server machine's provider CLI** — the browser/webview
 never sees or carries any credential. The Tween button POSTs to the local curation
 server, which spawns `codex`/`grok` as a subprocess; those CLIs use their own
 machine-local OAuth sessions.
@@ -48,7 +52,7 @@ machine-local OAuth sessions.
 ```bash
 $SPRITE_GEN_ROOT/.venv/bin/python $SPRITE_GEN_ROOT/scripts/interpolate_frames.py \
   --run-dir <run> --state down_idle --between 1 2 \
-  [--provider codex|grok] [--t 0.5] [--label blink_mid] [--extract]
+  [--provider codex|grok|openai] [--t 0.5] [--label blink_mid] [--extract]
 ```
 
 - `--between A B` — frame indices on the state's primary strip (component order).
@@ -63,7 +67,7 @@ $SPRITE_GEN_ROOT/.venv/bin/python $SPRITE_GEN_ROOT/scripts/interpolate_frames.py
   from a different palette.
 
 In the curator, the row-header **Tween** button does the same thing: open the
-popover, click two cards to pick the pair (blue border), choose GPT/Grok, Generate.
+popover, click two cards to pick the pair (blue border), choose GPT/Grok/Images 2.5 (API), Generate.
 While the follow-up full-batch re-extraction runs, `/api/run` reports busy (503)
 instead of a manifest-consistency error.
 

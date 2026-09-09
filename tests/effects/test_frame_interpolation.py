@@ -136,3 +136,117 @@ def test_interpolate_normalizes_stub_output(tmp_path: Path) -> None:
     ref_h = (lambda b: b[3] - b[1])(_chroma_content_bbox(img0, MAGENTA))
     mid_h = (lambda b: b[3] - b[1])(_chroma_content_bbox(took, MAGENTA))
     assert abs(mid_h - ref_h) <= 2, f"take content height {mid_h} vs reference {ref_h}"
+
+
+@pytest.mark.parametrize("preserve_evidence", [False, True])
+def test_openai_interpolation_sends_both_frames_to_images_edit(monkeypatch, tmp_path, preserve_evidence):
+    """Exercise the tween pipeline through the real adapter, replacing only HTTP."""
+    import base64
+    import io
+    from email.parser import BytesParser
+    from sprite_gen.gen import openai_provider
+
+    run = _build_run(tmp_path)
+    strip = Image.open(run / "raw" / "wave.png").convert("RGBA")
+    refs = aligned_pair_on_chroma(strip, 2, 0, 1, MAGENTA)
+    calls = []
+    output = io.BytesIO()
+    refs[0].save(output, "PNG")
+
+    class Response:
+        headers = {"x-request-id": "test-tween"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self):
+            return json.dumps({"data": [{"b64_json": base64.b64encode(output.getvalue()).decode()}],
+                               "usage": {"total_tokens": 42}}).encode()
+
+    def send(req, timeout):
+        calls.append(req)
+        return Response()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    monkeypatch.setattr(openai_provider, "urlopen", send)
+    evidence = tmp_path / "evidence" / "interpolation"
+    target = interpolate_between(run, "wave", 0, 1, provider="openai", label="api-mid",
+                                 evidence_dir=evidence if preserve_evidence else None,
+                                 prompt="Keep the pistol aligned with the wrist.")
+    assert target.is_file()
+    assert len(calls) == 1
+    req = calls[0]
+    assert req.full_url == "https://api.openai.com/v1/images/edits"
+    message = BytesParser().parsebytes(
+        f"Content-Type: {req.get_header('Content-type')}\r\nMIME-Version: 1.0\r\n\r\n".encode() + req.data
+    )
+    parts = message.get_payload()
+    images = [p for p in parts if p.get_param("name", header="content-disposition") == "image[]"]
+    assert len(images) == 2
+    for part, ref in zip(images, refs):
+        with Image.open(io.BytesIO(part.get_payload(decode=True))) as attached:
+            assert attached.size == ref.size
+            assert attached.tobytes() == ref.tobytes()
+    fields = {p.get_param("name", header="content-disposition"): p.get_payload(decode=True)
+              for p in parts if p not in images}
+    assert fields["model"] == b"gpt-image-2.5-sunburst"
+    assert b"IN-BETWEEN" in fields["prompt"]
+    assert b"#FF00FF" in fields["prompt"]
+    assert fields["prompt"].endswith(b"Keep the pistol aligned with the wrist.")
+    assert "background" not in fields  # Keep the requested chroma for normal extraction.
+    request = json.loads((run / "sprite-request.json").read_text())
+    assert request["states"]["wave"]["takes"] == [{"label": "api-mid", "frames": 1}]
+    if preserve_evidence:
+        report = json.loads((evidence / "generation.json").read_text())
+        assert report["prompt"] == fields["prompt"].decode()
+        assert report["provider"] == "openai"
+        assert report["model"] == "gpt-image-2.5-sunburst"
+        assert report["extra"]["usage"] == {"total_tokens": 42}
+        assert report["extra"]["request_id"] == "test-tween"
+        assert Path(report["out"]) == evidence / "generated.png"
+        assert Path(report["raw"]).read_bytes() == output.getvalue()
+        assert (evidence / "generated.png").read_bytes() == output.getvalue()
+        for path, ref in zip(report["refs"], refs):
+            with Image.open(path) as image:
+                assert image.tobytes() == ref.tobytes()
+        assert "test-only" not in json.dumps(report)
+    else:
+        assert not evidence.exists()
+
+
+def test_interpolation_cli_accepts_openai_without_changing_default():
+    from sprite_gen.effects.interpolate import _build_parser
+    args = ["--run-dir", "run", "--state", "wave", "--between", "0", "1"]
+    assert _build_parser().parse_args(args).provider == "codex"
+    assert _build_parser().parse_args(args + ["--provider", "openai"]).provider == "openai"
+
+
+@pytest.mark.parametrize("provider, expected_status", [("openai", 200), ("codex", 200), ("grok", 200), ("rife", 400)])
+def test_curator_interpolation_routes_provider_to_cli(monkeypatch, tmp_path, provider, expected_status):
+    from types import SimpleNamespace
+    from sprite_gen.serve import serve_curation
+
+    calls = []
+    replies = []
+
+    def invoke(*args):
+        calls.append(args)
+        return {"ok": True}
+
+    monkeypatch.setattr(serve_curation, "_run_module", invoke)
+    run = _build_run(tmp_path)
+    handler = SimpleNamespace(
+        path="/api/interpolate", run_dir=run,
+        _read_body=lambda: {"state": "wave", "from": 0, "to": 1, "provider": provider},
+        _send_json=lambda result, status=200: replies.append((result, status)),
+    )
+    serve_curation.CurationHandler.do_POST(handler)
+    assert replies[0][1] == expected_status
+    if expected_status == 200:
+        assert calls == [("interpolate", run, "--state", "wave", "--between", "0", "1",
+                          "--provider", provider, "--t", "0.5", "--extract")]
+    else:
+        assert calls == []
