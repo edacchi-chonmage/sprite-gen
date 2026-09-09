@@ -11,14 +11,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sprite-gen"
 # Release discipline: keep this package metadata version synchronized with
-# SKILL.md's `version:` field in the same release commit.
+# docs/engine-skill.md's `version:` field in the same release commit.
 version = "2.0.3"
-description = "Component-row pipeline for clean 2D game sprites and animation atlases"
+description = "Sprite Studio: conversational pixel art and animation with Orca Sonnet and Images 2.5"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     "pillow>=12.0,<13",
+    "python-dotenv>=1.0,<2",
     # NumPy is a direct dependency, never a transitive ride-along: the chroma
     # extraction path imports it directly and must not depend on some other
     # package happening to pull it in.
@@ -55,9 +56,10 @@ dev = [
 # `python -m sprite_gen.cli`, so the two forms cannot drift.
 [project.scripts]
 sprite-gen = "sprite_gen.cli:main"
+sprite-studio = "sprite_gen.serve.chat_studio:main"
 
 [project.urls]
-Repository = "https://github.com/aldegad/sprite-gen"
+Repository = "https://github.com/edacchi-chonmage/sprite-gen"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

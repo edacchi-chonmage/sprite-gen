@@ -1,4 +1,4 @@
-"""Natural-language sprite experiments: Orca Sonnet plans, Images 2.5 draws."""
+"""Orca SonnetとImages 2.5でドット絵とアニメーションを制作する。"""
 from __future__ import annotations
 
 import argparse
@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -19,7 +20,7 @@ from PIL import Image, ImageDraw
 
 from sprite_gen.gen import generate_image
 from sprite_gen.gen.openai_provider import DEFAULT_MODEL
-from sprite_gen.spec.runio import load_request, write_request
+from sprite_gen.spec.runio import load_request, write_request, publish_guard
 from sprite_gen.curate.curation import empty_curation, load_curation, write_curation_atomic, state_plan, source_frame_index
 from sprite_gen.serve.sonnet_bridge import run_sonnet
 
@@ -109,20 +110,18 @@ class Studio:
         return '/media/' + quote(str(Path(path).resolve().relative_to(self.assets)), safe='/')
 
     def library(self):
-        path = self.assets / 'capability-lab/results.json'
+        path = self.assets / 'library/index.json'
         if not path.exists():
             return {}
         result = {}
-        for item in json.loads(path.read_text()).get('experiments', []):
-            raw = item.get('raw')
-            if not raw:
-                continue
-            folder = safe_file(self.assets / 'capability-lab', raw).parent
+        for item in json.loads(path.read_text()).get('items', []):
+            folder = safe_file(self.assets, item['folder'])
             if not (folder / 'raw.png').is_file():
                 continue
+            animations = sorted((folder / 'pipeline/qa').glob('*.gif'))
             result[item['id']] = {'id': item['id'], 'title': item['title'], 'notes': item.get('notes', ''),
                 'thumbnail': self.media(folder / 'raw.png'),
-                'animation': self.media(self.assets / 'capability-lab' / item['animation']) if item.get('animation') else None,
+                'animation': self.media(animations[0]) if animations else None,
                 '_folder': folder}
         return result
 
@@ -315,8 +314,10 @@ class Studio:
             sequence = plan.get('sequence', [])
             if not sequence or len(sequence)>120 or any(type(i) is not int or not 0 <= i < total for i in sequence):
                 raise ValueError('再生順序に存在しないコマがある')
-        request['states'][kind]['fps'] = plan['fps']
-        write_request(pipeline, request)
+        with publish_guard(pipeline):
+            request = load_request(pipeline)
+            request['states'][kind]['fps'] = plan['fps']
+            write_request(pipeline, request)
         # Repeated playback slots are linked clone instances, not duplicate selected IDs.
         entry = curation.setdefault('states', {}).setdefault(kind, {})
         entry['clones'], entry['selected'] = {}, []
@@ -454,10 +455,17 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--assets',type=Path,default=Path('assets'))
+    parser.add_argument('--data-dir', '--assets', dest='assets', type=Path, default=Path('data'), help='作品と会話の保存先')
+    parser.add_argument('--env-file', type=Path, default=Path('.env.local'), help='APIキー等の設定ファイル')
+    parser.add_argument('--workspace', type=Path, default=Path.cwd(), help='Orcaで開いているリポジトリ')
+    parser.add_argument('--orca-worktree', help='Orcaの対象を明示する場合の識別子')
     parser.add_argument('--host',default='127.0.0.1')
     parser.add_argument('--port',type=int,default=4323)
     args=parser.parse_args()
+    from dotenv import load_dotenv
+    load_dotenv(args.env_file, override=False)
+    os.environ['SPRITE_STUDIO_WORKSPACE'] = str(args.workspace.expanduser().resolve())
+    if args.orca_worktree: os.environ['SPRITE_STUDIO_ORCA_WORKTREE'] = args.orca_worktree
     studio=Studio(args.assets,recover=True)
     server=ThreadingHTTPServer((args.host,args.port),partial(Handler,studio=studio))
     print(f'制作チャット：http://{args.host}:{args.port}/',flush=True)

@@ -6,7 +6,7 @@
 > character rig profile, the per-row track kind, the composite stack, and what a
 > layer bake is allowed to touch.
 >
-> Precedence, same as the rest of the docs: [`../SKILL.md`](../SKILL.md) owns the
+> Precedence, same as the rest of the docs: [`../SKILL.md`](engine-skill.md) owns the
 > behavior contract, [`run-contract.md`](run-contract.md) owns the structural
 > contract (stage table, run-dir tree, view payload), and
 > [`architecture.md`](architecture.md) only ever describes the code. This doc owns
@@ -479,7 +479,7 @@ is refused by name rather than treated as an empty bake — "nothing to compose"
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — behavior contract (workflow, gates, runtime contract)
+- [`../SKILL.md`](engine-skill.md) — behavior contract (workflow, gates, runtime contract)
 - [`run-contract.md`](run-contract.md) — stage table, run-dir tree, curation-view payload
 - [`architecture.md`](architecture.md) — how the code realizes the contracts
 - [`curation.md`](curation.md) — sidecar schema this contract deliberately does not extend

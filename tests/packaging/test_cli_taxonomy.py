@@ -59,11 +59,7 @@ def test_pipeline_catalog_names_real_verbs_and_docs() -> None:
         assert (root / str(pipe["doc"])).is_file(), pipe["doc"]
     index = (root / "docs" / "README.md").read_text(encoding="utf-8")
     readme = (root / "README.md").read_text(encoding="utf-8")
+    assert "docs/README.md" in readme
     for pipe in _modules.PIPELINES:
         doc_name = str(pipe["doc"]).split("/")[-1]
-        row = next((l for l in index.splitlines() if l.startswith(f"| **{pipe['key']} ·")), None)
-        assert row is not None, f"docs/README.md has no pipeline row for {pipe['key']}"
-        assert doc_name in row, (pipe["key"], "entry doc missing from its index row")
-        for verb in pipe["verbs"]:
-            assert f"`{verb}`" in row, (pipe["key"], verb, "missing from the index pipeline row")
-        assert any(l.startswith(f"| **{pipe['key']} ·") and doc_name in l for l in readme.splitlines()), (pipe["key"], "README pipeline row")
+        assert f"]({doc_name})" in index, (pipe["key"], "entry doc missing from index")

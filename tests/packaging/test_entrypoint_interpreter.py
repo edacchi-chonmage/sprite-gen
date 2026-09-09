@@ -49,7 +49,7 @@ _AGENT_REGISTER_BARE = re.compile(
 
 
 def _agent_facing_docs() -> list[Path]:
-    return [ROOT / "SKILL.md", *sorted((ROOT / "docs").glob("*.md"))]
+    return [ROOT / "docs" / "engine-skill.md", *sorted((ROOT / "docs").glob("*.md"))]
 
 
 def test_agent_facing_docs_never_invoke_a_global_python() -> None:
@@ -68,7 +68,7 @@ def test_agent_facing_docs_never_invoke_a_global_python() -> None:
 
 def test_skill_md_owns_the_interpreter_rule() -> None:
     """The rule has to live in SKILL.md, or the commands above are unexplained."""
-    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "engine-skill.md").read_text(encoding="utf-8")
     assert ".venv/bin/python" in text, (
         "SKILL.md must name the venv interpreter as the skill's runtime")
     assert "실행 인터프리터" in text, (

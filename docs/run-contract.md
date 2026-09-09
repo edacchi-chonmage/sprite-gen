@@ -8,7 +8,7 @@
 > generation-material chips, the pixel grid, and the original-quality toggle.
 >
 > Precedence (no overlap, so no contradiction):
-> - [`../SKILL.md`](../SKILL.md) owns the **behavior** contract — what the agent does, step by step.
+> - [`../SKILL.md`](engine-skill.md) owns the **behavior** contract — what the agent does, step by step.
 > - **This doc** owns the **structural** contract — the stage I/O table, the run-dir
 >   folder tree, the curation-view display payload, and the import-run source rule.
 >   These are the parts the scripts enforce.
@@ -181,7 +181,7 @@ Rules the display depends on:
 
 The runtime `manifest.json.frame_layout` contract (absolute rects, no runtime
 alpha-recovery, `degraded_static_fallback: false`) is owned by
-[`../SKILL.md`](../SKILL.md) "Runtime Contract" and is out of scope here.
+[`../SKILL.md`](engine-skill.md) "Runtime Contract" and is out of scope here.
 
 ## 2-b-2. Reading a run never writes to it
 
@@ -559,7 +559,7 @@ service, revisit both here.
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — behavior contract (Workflow, Base Lock Gate, Runtime Contract)
+- [`../SKILL.md`](engine-skill.md) — behavior contract (Workflow, Base Lock Gate, Runtime Contract)
 - [`architecture.md`](architecture.md) — how the code realizes these contracts (stage internals, lock, extraction, pixel-unfake path)
 - [`curation.md`](curation.md) — webview interaction model, `curation.json` schema, standalone image-candidate path, multi-agent launch rules
 - [`recolor.md`](recolor.md) — palette-swap bake (`variants/`), report schema, colourway adopt

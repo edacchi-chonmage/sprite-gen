@@ -35,7 +35,7 @@ def test_docs_index_lists_every_leaf_doc_exactly_once() -> None:
 
 
 def _markdown_files() -> list[Path]:
-    files = [ROOT / "README.md", ROOT / "SKILL.md", ROOT / "CHANGELOG.md", *DOCS.glob("*.md"), ROOT / "scripts" / "dev" / "README.md"]
+    files = [ROOT / "README.md", ROOT / "docs" / "engine-skill.md", ROOT / "CHANGELOG.md", *DOCS.glob("*.md"), ROOT / "scripts" / "dev" / "README.md"]
     return [f for f in files if f.is_file()]
 
 

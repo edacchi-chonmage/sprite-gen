@@ -76,5 +76,5 @@ Select with request `chroma.mode: "ycbcr"` or `--chroma-mode ycbcr`. **The defau
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — 필수 게이트 (크로마 키 소재색 분기 + 변환 후 소재색 보존 검증)
+- [`../SKILL.md`](engine-skill.md) — 필수 게이트 (크로마 키 소재색 분기 + 변환 후 소재색 보존 검증)
 - [`architecture.md`](architecture.md) — `remove_chroma_background` 추출 내부 단계

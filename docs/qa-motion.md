@@ -33,6 +33,6 @@ Record the per-state motion verdict in `qa-notes.md`.
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — QA 자동 체크 목록 + report 포맷
+- [`../SKILL.md`](engine-skill.md) — QA 자동 체크 목록 + report 포맷
 - [`states-and-frames.md`](states-and-frames.md) — simple/experimental 상태 구분
 - [`locomotion-curation.md`](locomotion-curation.md) — 부분 프레임만 쓸 만할 때의 selected-cycle 경로

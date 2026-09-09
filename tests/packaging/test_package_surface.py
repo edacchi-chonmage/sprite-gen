@@ -53,7 +53,7 @@ CLI_HELPERS = [
 
 
 def _read_skill_version() -> str:
-    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "engine-skill.md").read_text(encoding="utf-8")
     match = re.search(r"(?m)^version:\s*([^\s#]+)\s*$", text)
     assert match, "SKILL.md frontmatter is missing version:"
     return match.group(1)

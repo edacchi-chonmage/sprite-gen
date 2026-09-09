@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -13,11 +14,12 @@ import time
 from collections.abc import Callable
 
 
-_ROOT = Path(__file__).resolve().parents[2]
+def workspace() -> Path:
+    return Path(os.environ.get("SPRITE_STUDIO_WORKSPACE", str(Path.cwd()))).expanduser().resolve()
 
 
 def _orca(executable: str, *args: str) -> dict:
-    result = subprocess.run([executable, *args, '--json'], cwd=_ROOT,
+    result = subprocess.run([executable, *args, '--json'], cwd=workspace(),
                             capture_output=True, text=True, timeout=30)
     try:
         payload = json.loads(result.stdout)
@@ -76,7 +78,10 @@ def run_sonnet(work_dir: Path, prompt: str, images: list[Path], schema: dict,
     """The caller owns public artifacts; this transport stays outside served paths."""
     if timeout <= 0:
         raise ValueError('制限時間は正の値を指定してね')
-    worktree = _orca(orca_command, 'worktree', 'current')['worktree']['id']
+    orca_command = os.environ.get('ORCA_CLI_COMMAND', orca_command)
+    worktree_selector = os.environ.get('SPRITE_STUDIO_ORCA_WORKTREE')
+    if not worktree_selector:
+        worktree_selector = 'id:' + _orca(orca_command, 'worktree', 'current')['worktree']['id']
     message = _message(prompt, images)
     with tempfile.TemporaryDirectory(prefix='sprite-sonnet-') as temporary:
         directory = Path(temporary)
@@ -85,7 +90,7 @@ def run_sonnet(work_dir: Path, prompt: str, images: list[Path], schema: dict,
         config.chmod(0o600)
         terminal = None
         try:
-            created = _orca(orca_command, 'terminal', 'create', '--worktree', 'id:' + worktree,
+            created = _orca(orca_command, 'terminal', 'create', '--worktree', worktree_selector,
                             '--title', 'スプライトの調査・設計', '--command',
                             shlex.join([sys.executable, str(Path(__file__).with_name('sonnet_worker.py')), str(directory)]))
             terminal = created['terminal']['handle']

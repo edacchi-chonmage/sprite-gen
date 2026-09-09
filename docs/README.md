@@ -1,99 +1,61 @@
-# sprite-gen documentation index
+# 制作チャットの資料
 
-One tool, four pipelines, one taxonomy. Every verb works alone or as a pipeline stage;
-every doc below owns exactly one concern and the others point at it. Start with the
-pipeline you are running, then follow its contract doc.
+このリポジトリは、自然言語で画像とアニメーションを作り、見比べながら修正するアプリを開発する場所。通常の利用は `sprite-studio` から始める。
 
-```mermaid
-flowchart LR
-    subgraph A["A · atlas rows"]
-        direction LR
-        a1[prepare] --> a2["gen · gen-set"] --> a3[extract] --> a4[curation] --> a5[compose-atlas]
-    end
-    subgraph B["B · video → loop"]
-        direction LR
-        b1[video-canvas] --> b2[video] --> b3[video-frames] --> b4[video-loop]
-        b5[video-set] -.runs all four.-> b1
-    end
-    subgraph C["C · utilities"]
-        direction LR
-        c1[cutout] ~~~ c2[slice-sheet] ~~~ c3[unpack-atlas]
-    end
-    subgraph D["D · post-processing"]
-        direction LR
-        d1[recolor] ~~~ d2[compose-layers] ~~~ d3["breathe (compose)"] ~~~ d4[export-*]
-    end
-```
+## アプリの利用・開発
 
-| Pipeline | Entry doc | Verbs |
-|---|---|---|
-| **A · atlas rows** — one still becomes a runtime sprite sheet | [run-contract.md](run-contract.md) | `prepare` → `gen` / `gen-set` → `extract` → `curation` → `compose-atlas` |
-| **B · video → loop** — one still becomes transparent motion loops | [video-pipeline.md](video-pipeline.md) | `video-canvas` → `video` → `video-frames` → `video-loop`, `video-set` |
-| **C · utilities** — imported images in, clean cuts out | [sheet-slicing.md](sheet-slicing.md) | `cutout`, `slice-sheet`, `unpack-atlas` |
-| **D · post-processing** — finished sheets, refined | [recolor.md](recolor.md) | `recolor`, `recolor-palette`, `compose-layers`, breathing (compose), `export-pngs`, `export-aseprite` |
-
-`sprite-gen --help` prints the same four pipelines and every verb grouped by domain; the
-grouping is derived from `sprite_gen/_modules.py`, the one taxonomy table.
-
-## Contract & structure
-
-| Doc | Owns |
+| 資料 | 内容 |
 |---|---|
-| [run-contract.md](run-contract.md) | The atlas pipeline's normative contract: stages, the run-dir folder tree, curation-view display, atomic extract, concurrency scope |
-| [architecture.md](architecture.md) | How the code is laid out: domains, stage ownership, the numeric SSoT, the cell model, extraction internals, runtime manifest |
+| [制作チャット](chat-studio.md) | 起動、Orcaとの接続、データの保存、制作の流れと制限 |
+| [Images 2.5接続](openai-images25.md) | 画像生成API、参照画像の送信、生成報告と再試行の扱い |
 
-## Request authoring (pipeline A inputs)
+## 内部エンジン資料
 
-| Doc | Owns |
+以下はアプリが利用する `sprite_gen` と、上流から引き継いだ画像処理機能の技術資料。チャットを使うために、これらのコマンドやディレクトリ構造を覚える必要はない。動画生成など、現在のチャットから直接操作しない機能も含む。
+
+### 構造と入出力
+
+| 資料 | 内容 |
 |---|---|
-| [states-and-frames.md](states-and-frames.md) | Which states to request and how many frames each |
-| [subject-profiles.md](subject-profiles.md) | `character` vs `effect` subjects and the sparse-frame floor they set |
-| [pixel-unfake.md](pixel-unfake.md) | The `fit` / `pixel_unfake` path for pixel-art targets and jitter-free locomotion |
-| [chroma-alpha.md](chroma-alpha.md) | Choosing the chroma key and diagnosing alpha cleanup after extraction |
+| [処理の契約](run-contract.md) | 生成から切り出し、選別、画像シート合成までの保存形式と処理段階 |
+| [内部構成](architecture.md) | モジュール、コマの座標系、切り出し、出力形式 |
+| [動作とコマ数](states-and-frames.md) | モーションごとの指定とコマ数 |
+| [被写体の種類](subject-profiles.md) | キャラクターとエフェクトの扱い |
+| [ドット化](pixel-unfake.md) | 論理画素の推定、指定サイズへの加工、位置合わせ |
+| [背景色と透過](chroma-alpha.md) | 背景色の選択と透過処理の診断 |
 
-## Generation (the AI steps)
+### 生成と補間
 
-| Doc | Owns |
+| 資料 | 内容 |
 |---|---|
-| [gen.md](gen.md) | `sprite-gen gen` / `gen-set`: providers, default resolution, transparency strategy per provider, row usage |
-| [video.md](video.md) | `sprite-gen video`: image to mp4 through Grok Imagine with the user's own credential |
-| [video-pipeline.md](video-pipeline.md) | Pipeline B engine contract: state canvas, keyed frames, true-period and one-shot cycles, strip/GIF/WebP, the batch |
-| [frame-interpolation.md](frame-interpolation.md) | Generative in-betweens for sprite frames, recorded as a take |
-| [seamless-video-loop.md](seamless-video-loop.md) | Making a non-looping ambient clip loop forever (RIFE seam bridge) — a different job from pipeline B |
+| [画像生成](gen.md) | 画像生成コマンドと各接続先の設定 |
+| [中間コマ生成](frame-interpolation.md) | 前後の姿勢を参照する中間画像の生成と保存 |
+| [動画生成](video.md) | Grok Imagineによる動画生成 |
+| [動画からアニメーション](video-pipeline.md) | 動画の透過、コマ抽出、周期の選択と一括処理 |
+| [動画のループ接続](seamless-video-loop.md) | 環境動画の終端と先頭の補間 |
 
-## Curation
+### 選別・加工・出力
 
-| Doc | Owns |
+| 資料 | 内容 |
 |---|---|
-| [curation.md](curation.md) | The webview, standalone candidate view, finished-sheet editing and every `curation.json` field |
-| [breathing.md](breathing.md) | The idle-breathing post-process layer and the static-pose row recipe |
-| [locomotion-curation.md](locomotion-curation.md) | Motion-phase experiments, manual selected cycles, clean GIF export |
+| [選別画面](curation.md) | 内部の候補比較画面、コマ編集、選択の保存形式 |
+| [呼吸の加工](breathing.md) | 静止姿勢に呼吸を加える処理 |
+| [移動モーションの選別](locomotion-curation.md) | 周期の選択とGIF出力 |
+| [色の変更](recolor.md) | パレットの置き換えと色違いの保存 |
+| [レイヤー合成](layer-tracks.md) | 骨格・トラック・レイヤーの内部形式と合成 |
+| [ゲーム向け出力](engine-export.md) | PNGとAseprite互換出力 |
+| [方向別の基準画像](directional-anchor-workflow.md) | 向き別の基準画像からモーションを作る手順 |
+| [画像シートの分割](sheet-slicing.md) | 複数の被写体やコマの切り出し |
 
-## Post-processing (pipeline D)
+### 検査と保守
 
-| Doc | Owns |
+| 資料 | 内容 |
 |---|---|
-| [recolor.md](recolor.md) | Deterministic palette-swap bake, colourway pick, `variants/` and its report |
-| [layer-tracks.md](layer-tracks.md) | Rig runs: `rig` / `track` / `layers` contract and `compose-layers` |
-| [engine-export.md](engine-export.md) | Aseprite-compatible export for Phaser and Flame |
+| [モーションの品質確認](qa-motion.md) | コマの連続性を確認する基準 |
+| [Python環境](interpreter.md) | プロジェクトの仮想環境の利用 |
+| [名称変更の確認項目](rename-gate.md) | 用語やキーの変更時に揃える箇所 |
+| [問題の調査](troubleshooting.md) | 画像処理の症状、原因と対処 |
 
-## Specialized inputs (pipeline C and direction runs)
+## エンジンの作業手順
 
-| Doc | Owns |
-|---|---|
-| [directional-anchor-workflow.md](directional-anchor-workflow.md) | Directional / 45° rows: base → direction anchors → rows, the left-right gate |
-| [sheet-slicing.md](sheet-slicing.md) | Multi-figure grid sheets to per-cell standing cuts; the `cutout` routes |
-
-## QA
-
-| Doc | Owns |
-|---|---|
-| [qa-motion.md](qa-motion.md) | Motion Continuity — the blocking judgement of a row as motion |
-
-## Runtime & process
-
-| Doc | Owns |
-|---|---|
-| [interpreter.md](interpreter.md) | Why the project venv is the only interpreter (no global `python3`, no NumPy fallback) |
-| [rename-gate.md](rename-gate.md) | What must move together when a vocabulary word or key is renamed |
-| [troubleshooting.md](troubleshooting.md) | Symptoms of a pipeline that is "quietly wrong", with causes and fixes |
+- [上流のエンジン制作手順](engine-skill.md) — 画像処理側の参考資料。アプリ開発ではルートのAGENTS.mdを優先する。

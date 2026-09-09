@@ -195,7 +195,7 @@ def test_the_gate_hands_back_the_real_numpy() -> None:
 
 def test_skill_md_documents_the_missing_numpy_behavior() -> None:
     """An agent that hits the traceback reads SKILL.md next; the rule lives there."""
-    text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "engine-skill.md").read_text(encoding="utf-8")
 
     assert "NumPy 가 없는 인터프리터" in text, (
         "SKILL.md lost the clause telling agents what a NumPy-less interpreter does")

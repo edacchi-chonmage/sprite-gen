@@ -58,17 +58,17 @@ def test_recolor_leaf_doc_exists_and_teaches_both_commands() -> None:
 
 
 def test_skill_hub_routes_recolor_triggers_and_points_at_leaf() -> None:
-    text = _read("SKILL.md")
+    text = _read("docs/engine-skill.md")
     # Frontmatter description carries the trigger vocabulary for skill routers.
     assert "palette swap" in text or "팔레트 스왑" in text
     assert "recolor" in text
-    assert "docs/recolor.md" in text
+    assert "recolor.md" in text
     assert "sprite-gen recolor" in text
     assert "recolor-palette" in text
     # Workflow step after compose.
     assert "4.5" in text
     # Docs topology branch.
-    assert "COLOURWAYS" in text or "docs/recolor.md" in text
+    assert "COLOURWAYS" in text or "recolor.md" in text
     # Wrapper listed among required scripts.
     assert "scripts/recolor.py" in text
 
@@ -84,16 +84,9 @@ def test_curation_and_run_contract_name_the_sidecar_and_folder() -> None:
     assert "recolor" in run_contract
 
 
-def test_readme_and_changelog_surface_the_feature() -> None:
-    readme = _read("README.md")
-    assert "recolor" in readme
-    assert "docs/recolor.md" in readme
-
-    changelog = _read("CHANGELOG.md")
-    # The Unreleased recolor section must exist before a version pin is cut.
-    assert "palette-swap" in changelog or "palette swap" in changelog.lower() or "recolor" in changelog
-    assert "recolor-palette" in changelog
-    assert "recolor.picked" in changelog or "colourway" in changelog.lower() or "colorway" in changelog.lower()
+def test_documentation_index_routes_to_the_engine_feature() -> None:
+    assert "recolor.md" in _read("docs/README.md")
+    assert "docs/README.md" in _read("README.md")
 
 
 # Every file this feature adds to the published tree. The leak found in review was

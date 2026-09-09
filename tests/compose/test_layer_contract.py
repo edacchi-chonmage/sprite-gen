@@ -601,14 +601,14 @@ def test_layer_doc_is_publishable() -> None:
 
 
 def test_layer_doc_is_linked_from_the_hub_and_the_contracts() -> None:
-    assert "docs/layer-tracks.md" in _read("SKILL.md")
+    assert "layer-tracks.md" in _read("docs/engine-skill.md")
     assert "layer-tracks.md" in _read("docs/run-contract.md")
     assert "layer-tracks.md" in _read("docs/architecture.md")
 
 
 def test_the_bake_command_is_documented_where_an_agent_looks() -> None:
     """A CLI nobody can find is a library. The hub names it; the doc explains it."""
-    skill = _read("SKILL.md")
+    skill = _read("docs/engine-skill.md")
     doc = _read("docs/layer-tracks.md")
 
     assert "sprite-gen compose-layers" in skill

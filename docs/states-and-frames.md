@@ -70,6 +70,6 @@ If a user asks for 9 or 12 frames, run it as an explicit experiment and report `
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — canonical behavior contract
+- [`../SKILL.md`](engine-skill.md) — canonical behavior contract
 - [`directional-anchor-workflow.md`](directional-anchor-workflow.md) — 방향성/45도/locomotion 상태의 앵커 체인
 - [`qa-motion.md`](qa-motion.md) — motion continuity 판정 기준

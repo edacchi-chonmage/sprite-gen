@@ -899,7 +899,7 @@ RETIRED_DOC_CLAIMS = [
     ("fingerprint of the\n  frame it came from", "지문은 프레임이 아니라 **입력 키**의 지문이다"),
     ("a mismatch re-detects", "굽기는 지문을 안 보고 **매번** 재검출한다"),
 ]
-DOC_FILES = ["CHANGELOG.md", "SKILL.md", "README.md",
+DOC_FILES = ["CHANGELOG.md", "docs/engine-skill.md", "README.md",
              "docs/breathing.md", "docs/run-contract.md", "docs/curation.md"]
 
 

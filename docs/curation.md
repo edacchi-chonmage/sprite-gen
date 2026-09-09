@@ -272,7 +272,7 @@ The chosen layout source is always reported (`manifest` / `grid-explicit` / `aut
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — canonical behavior contract (Workflow 스텝 3.5/4.5/5)
+- [`../SKILL.md`](engine-skill.md) — canonical behavior contract (Workflow 스텝 3.5/4.5/5)
 - [`architecture.md`](architecture.md) — 큐레이션 사이드카가 파이프라인에서 소비되는 위치
 - [`recolor.md`](recolor.md) — palette-swap bake CLI, report schema, colourway adopt
 - [`locomotion-curation.md`](locomotion-curation.md) — 수동 selected-cycle, 클린 GIF export

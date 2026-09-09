@@ -249,7 +249,7 @@ manifest if one was propagated). The base atlas stays the geometry SSoT.
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — hub, trigger routing, script map
+- [`../SKILL.md`](engine-skill.md) — hub, trigger routing, script map
 - [`curation.md`](curation.md) — webview + `curation.json` schema (`recolor.picked`)
 - [`run-contract.md`](run-contract.md) — run-dir folder tree (`variants/`)
 - `tests/test_recolor_bake.py` — determinism, exact/tolerance, report contract

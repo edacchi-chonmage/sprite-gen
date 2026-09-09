@@ -3,7 +3,7 @@
 > Owns: How the code is laid out: domains, stage ownership, the numeric SSoT, the cell model, extraction internals, runtime manifest · Index: [docs/README.md](README.md)
 
 > Status: reference (describes the code as it actually is, v2.0.0, 2026-09-09).
-> Canonical behavior contract lives in [`../SKILL.md`](../SKILL.md); this doc
+> Canonical behavior contract lives in [`../SKILL.md`](engine-skill.md); this doc
 > explains *how* the code realizes that contract. If this doc and `SKILL.md`
 > ever disagree, `SKILL.md` wins and this doc is the bug. The documentation
 > index is [`README.md`](README.md).
@@ -213,7 +213,7 @@ the extraction core. Today, that separation is not wired.
 ## 5. Idle-anchor architecture (identity ownership)
 
 Stage 0 is a BLOCKING gate (the gate question and the five lock criteria live
-in [`../SKILL.md`](../SKILL.md)). The ownership rule:
+in [`../SKILL.md`](engine-skill.md)). The ownership rule:
 
 ```text
 identity truth = accepted idle anchor
@@ -451,7 +451,7 @@ whole atlas in a single generation.
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — canonical behavior contract
+- [`../SKILL.md`](engine-skill.md) — canonical behavior contract
 - [`pixel-unfake.md`](pixel-unfake.md) — `fit`/`pixel_unfake` behavior contract
 - [`curation.md`](curation.md) — webview usage + `curation.json` field semantics
 - [`chroma-alpha.md`](chroma-alpha.md) — chroma key selection + alpha cleanup contract

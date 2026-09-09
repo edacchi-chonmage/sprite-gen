@@ -129,6 +129,6 @@ AI 개입은 **raw 생성 한 곳뿐**이다 (`SKILL.md` 필수 게이트). 픽�
 
 ## Related
 
-- [`../SKILL.md`](../SKILL.md) — canonical behavior contract (필수 게이트, SSoT 요청 스키마)
+- [`../SKILL.md`](engine-skill.md) — canonical behavior contract (필수 게이트, SSoT 요청 스키마)
 - [`architecture.md`](architecture.md) — 추출 내부 구현 (피치 검출·grid-snap·팔레트 코드 동작)
 - [`curation.md`](curation.md) — 큐레이션뷰 사용법, `curation.json.pixel_unfake` 플래그
