@@ -46,8 +46,9 @@ from .base import (
 )
 from .codex_provider import CodexProvider
 from .grok_provider import GrokProvider
+from .openai_provider import OpenAIProvider
 
-PROVIDERS = ("codex", "grok")
+PROVIDERS = ("codex", "grok", "openai")
 # `--alpha-mode`: `auto` reads the provider's declared strategy (the SSoT);
 # `native` / `chroma` force one. Forcing `native` on a chroma-only provider fails
 # loud — a strategy the backend cannot execute is not a fallback candidate.
@@ -71,6 +72,8 @@ def _make_provider(name: str, *, keep_session: bool):
         return CodexProvider(keep_session=keep_session)
     if name == "grok":
         return GrokProvider()
+    if name == "openai":
+        return OpenAIProvider()
     raise SystemExit(f"gen: unknown provider {name!r}; expected one of {', '.join(PROVIDERS)}")
 
 
@@ -302,6 +305,9 @@ def _run(args: argparse.Namespace) -> int:
             resolved_from = DEFAULT_PROVIDER_ENV
         else:
             resolved_from = "hard-default"
+    report_path = Path(args.report).expanduser().resolve() if args.report else None
+    if report_path is not None:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
     result = generate_image(
         provider,
         prompt or "",
@@ -324,8 +330,7 @@ def _run(args: argparse.Namespace) -> int:
     payload["provider_resolved_from"] = resolved_from
     if fallback:
         payload["provider_fallback"] = fallback
-    if args.report:
-        report_path = Path(args.report).expanduser().resolve()
+    if report_path is not None:
         atomic_write_text(report_path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
         payload["report"] = str(report_path)
     _print_json(payload)
