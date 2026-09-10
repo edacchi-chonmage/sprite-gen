@@ -21,6 +21,8 @@ from PIL import Image
 from .base import GEN_TIMEOUT_SECONDS, TRANSPARENCY_NATIVE, GenRequest, ProviderRun
 
 DEFAULT_MODEL = "gpt-image-2.5-sunburst"
+# 品質は環境変数で切り替える（比較実験用。既定は high）
+IMAGE_QUALITY = os.environ.get("SPRITE_GEN_IMAGE_QUALITY", "high")
 API_ROOT = "https://api.openai.com/v1/images"
 
 
@@ -57,7 +59,7 @@ class OpenAIProvider:
         model = request.model or DEFAULT_MODEL
         fields = {
             "model": model, "prompt": request.prompt, "n": 1,
-            "quality": "high", "size": "auto", "output_format": "png",
+            "quality": IMAGE_QUALITY, "size": "auto", "output_format": "png",
         }
         if request.native_alpha:
             fields["background"] = "transparent"
@@ -104,6 +106,6 @@ class OpenAIProvider:
                 "model": actual_model,
                 "model_source": "response" if payload.get("model") else "request",
                 "usage": payload.get("usage"), "request_id": request_id,
-                "references": refs, "quality": "high", "size": "auto",
+                "references": refs, "quality": IMAGE_QUALITY, "size": "auto",
             },
         )
