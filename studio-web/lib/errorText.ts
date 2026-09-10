@@ -3,6 +3,9 @@
 const RETRY_NOTE = "二重課金を避けるため自動では再送しないので、もう一度依頼を送ってね。";
 
 export function describeChatError(raw: string): string {
+  if (raw.startsWith("Orcaへの接続に失敗した")) {
+    return `${raw}。Sonnetを起動する前の段階なので画像APIは呼ばれていない。サーバー起動時の --orca-worktree がOrcaに登録された作業ツリーか確認して、もう一度依頼を送ってね。`;
+  }
   if (!raw.startsWith("openai-gen:")) return raw;
   if (raw.includes("transport failed")) {
     return `画像APIから時間内に返事が来なかった（通信の途中で切れた可能性もある）。${RETRY_NOTE}`;
