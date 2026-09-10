@@ -8,7 +8,7 @@ export function describeChatError(raw: string): string {
   }
   if (!raw.startsWith("openai-gen:")) return raw;
   if (raw.includes("transport failed")) {
-    return `画像APIから時間内に返事が来なかった（通信の途中で切れた可能性もある）。${RETRY_NOTE}`;
+    return `画像APIにつなげなかった（時間切れ・通信断・SSL証明書の未設定のどれか。すぐ失敗した場合は証明書の可能性が高い）。${RETRY_NOTE}`;
   }
   const http = raw.match(/HTTP (\d{3})/);
   if (http) {
