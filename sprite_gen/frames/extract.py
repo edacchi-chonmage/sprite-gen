@@ -2735,6 +2735,22 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
     all_warnings: list[str] = []
 
     pixel_unfake = bool(fit_config.get("pixel_unfake"))
+    # 등폭 슬롯 레이아웃 (기본 "components" = 종전 동작): Images 2.5 처럼 요청한
+    # 프레임 수를 이미 같은 자리·같은 크기로 나눠 그리는 생성물은, 컴포넌트별로
+    # 윤곽까지 타이트하게 자르고(tighten_components) 다시 접지선에 앉히는 종전
+    # 경로가 모델이 맞춘 정렬을 버리고 프레임마다 다른 높이/좌우 위치를 스스로
+    # 만들어냈다 (maintainer 조사 2026-09: 4코마 모두 상단 139·높이 541로 온
+    # 생성물이 추출 후 높이 57/57/59/57, 좌측 22/24로 흔들림). "slots" 는 행의
+    # 원본을 프레임 수만큼 등폭 분할해 그대로 자르고(윤곽 타이트닝 없음), 행 전체
+    # 공통 배율로 줄여 고정 위치에 앉힌다 — register_row_frames/foot-centroid/
+    # ground 재배치를 전혀 하지 않는다.
+    layout_mode = str(fit_config.get("layout_mode", "components")).lower()
+    if layout_mode not in ("components", "slots"):
+        raise SystemExit(f"fit.layout_mode must be 'components' or 'slots' (got {layout_mode!r})")
+    if layout_mode == "slots" and not pixel_unfake:
+        all_warnings.append(
+            "fit.layout_mode=slots is not applied as declared: it only affects the "
+            "fit.pixel_unfake path — drop the key or set fit.pixel_unfake=true.")
     # 기본 = 셀과 동일(1:1) — 생성 프롬프트가 "TRUE 셀xN pixel grid" 를 명시하는
     # 현행 레시피에서 원본 그리드를 그대로 따라간다. 청키 2x 룩을 원할 때만
     # 절반 값(예: 셀 64 + 로지컬 32)을 명시한다. (2026-07-05, 이전 기본은 usable//2)
@@ -3064,6 +3080,45 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
         return {"method": method, "pitch": pitch, "logical": logical_frames,
                 "components": images, "cut_edges": cut_edges}
 
+    def _slot_snap_strip(tag: str, strip: Image.Image, frame_count: int) -> dict[str, Any] | None:
+        """fit.layout_mode="slots": 연결요소 타이트닝·프레임별 격자 검출·행 재정합
+        없이, 스트립을 프레임 수만큼 등폭 분할해 그대로 자른다 (`_snap_strip` 의
+        대안 — 도크스트링 상단 layout_mode 주석 참고). 세로 절단 범위는 행 전체
+        (모든 슬롯) 공통이고, 배율도 행에서 하나만 정해 전 슬롯에 동일 적용한다 —
+        모델이 이미 맞춘 자리·크기를 그대로 보존하는 것이 목적이라 프레임별 편차를
+        만드는 축소 방식(연결요소 bbox crop, 프레임별 배율)은 전부 피한다."""
+        rgba = strip.convert("RGBA")
+        width, height = rgba.size
+        alpha = np.asarray(rgba.split()[3])
+        fg_rows = np.where((alpha >= 128).any(axis=1))[0]
+        if fg_rows.size == 0:
+            all_errors.append(f"{tag}: strip has no opaque content")
+            return None
+        crop_pad = 2  # "少し余白" — 콘텐츠 상하단에 두는 소폭 여백(px)
+        y0 = max(0, int(fg_rows[0]) - crop_pad)
+        y1 = min(height, int(fg_rows[-1]) + 1 + crop_pad)
+        slot_width = width / frame_count
+        bounds = [(round(i * slot_width), round((i + 1) * slot_width)) for i in range(frame_count)]
+        content_width = 1
+        for x0, x1 in bounds:
+            cols = np.where((alpha[y0:y1, x0:x1] >= 128).any(axis=0))[0]
+            if cols.size:
+                content_width = max(content_width, int(cols[-1]) - int(cols[0]) + 1)
+        cap_w = max(1, (cell_width - safe_margin_x * 2) // pp_scale)
+        cap_h = max(1, (cell_height - safe_margin_y * 2) // pp_scale)
+        content_height = max(1, y1 - y0)
+        scale = min(cap_h / content_height, cap_w / content_width)
+        images: list[Image.Image] = []
+        logical: list[Image.Image] = []
+        for x0, x1 in bounds:
+            crop = rgba.crop((x0, y0, x1, y1))
+            images.append(crop)
+            target_w = max(1, round(crop.width * scale))
+            target_h = max(1, round(crop.height * scale))
+            logical.append(binarize_alpha(_kcentroid_downscale(crop, target_w, target_h, pp_detail_bias)))
+        return {"method": "slots", "pitch": round(scale, 4), "logical": logical,
+                "components": images, "cut_edges": [None] * frame_count}
+
     total_steps = len(states) * 2  # 1패스(컴포넌트/스냅) + 2패스(팔레트/배치)
     progress_step = 0
     for state in states:
@@ -3110,7 +3165,12 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
         parts: list[dict[str, Any]] | None = []
         for tag, rel, count, label in specs:
             strip = _load_strip(state, tag, rel, count)
-            part = _snap_strip(tag, strip, count) if strip is not None else None
+            if strip is None:
+                part = None
+            elif layout_mode == "slots":
+                part = _slot_snap_strip(tag, strip, count)
+            else:
+                part = _snap_strip(tag, strip, count)
             if part is None:
                 parts = None
                 break
@@ -3118,9 +3178,14 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
             parts.append(part)
         if parts is None:
             continue
-        registered = register_row_frames(
-            [f for p in parts for f in p["logical"]],
-            reference=str(fit_config.get("registration_reference", "first")).lower())
+        if layout_mode == "slots":
+            # slots 는 모델이 이미 맞춘 자리를 그대로 쓴다 — register_row_frames
+            # 의 상체 정합 재배치는 스스로 잔차 지터를 만들 뿐이라 적용하지 않는다.
+            registered = [f for p in parts for f in p["logical"]]
+        else:
+            registered = register_row_frames(
+                [f for p in parts for f in p["logical"]],
+                reference=str(fit_config.get("registration_reference", "first")).lower())
         labels = None
         takes_summary = None
         if len(parts) > 1:
@@ -3169,19 +3234,36 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
             if outline_cfg:
                 strength = 0.62 if outline_cfg is True else float(outline_cfg)
                 quantized = [enforce_outline(frame, strength) for frame in quantized]
-            left, top = row_placement(quantized, cell_width, cell_height, safe_margin_y, pp_scale, fit_config)
-            ground_frames = bool(fit_config.get("ground_frames", True))
-            # alpha-centroid 는 프레임별 가로 배치 — 행 union 공동 left 로는
-            # register_row_frames 의 정합 잔차가 지터로 남는다.
-            per_frame_centroid = str(fit_config.get("align_x", "foot-centroid")).lower() == "alpha-centroid"
-            align_y = str(fit_config.get("align_y", "bottom")).lower()
-            frames = [
-                place_row_frame(
-                    frame, cell_width, cell_height, pp_scale,
-                    _alpha_centroid_row_left(frame, cell_width, pp_scale) if per_frame_centroid else left,
-                    top, safe_margin_y, ground_frames, align_y)
-                for frame in quantized
-            ]
+            if layout_mode == "slots":
+                # slots: 콘텐츠 bbox 기반 재배치(foot-centroid/ground/align_x)를 전혀
+                # 하지 않는다 — 슬롯 사각형 자체(모델이 이미 안에 맞춰 그린 콘텐츠)를
+                # 가로는 셀 중앙, 세로는 접지선(cell - safe_margin_y)에 고정으로 얹는다.
+                # 각 프레임의 위치는 오직 그 프레임 자신의 크기로만 정해져 다른 프레임의
+                # 콘텐츠와 무관하다 — 이것이 프레임 간 지터를 만들지 않는 이유다.
+                frames = []
+                for frame in quantized:
+                    scaled_w = frame.width * pp_scale
+                    scaled_h = frame.height * pp_scale
+                    left = max(0, min(cell_width - scaled_w, (cell_width - scaled_w) // 2))
+                    left -= left % pp_scale
+                    top = max(0, cell_height - safe_margin_y - scaled_h)
+                    frames.append(place_row_frame(
+                        frame, cell_width, cell_height, pp_scale, left, top,
+                        None, False, "bottom"))
+            else:
+                left, top = row_placement(quantized, cell_width, cell_height, safe_margin_y, pp_scale, fit_config)
+                ground_frames = bool(fit_config.get("ground_frames", True))
+                # alpha-centroid 는 프레임별 가로 배치 — 행 union 공동 left 로는
+                # register_row_frames 의 정합 잔차가 지터로 남는다.
+                per_frame_centroid = str(fit_config.get("align_x", "foot-centroid")).lower() == "alpha-centroid"
+                align_y = str(fit_config.get("align_y", "bottom")).lower()
+                frames = [
+                    place_row_frame(
+                        frame, cell_width, cell_height, pp_scale,
+                        _alpha_centroid_row_left(frame, cell_width, pp_scale) if per_frame_centroid else left,
+                        top, safe_margin_y, ground_frames, align_y)
+                    for frame in quantized
+                ]
             # 옵트인: 행 전체에서 threshold 장 이하만 어긋나는 좌표(격자 위상 잔차로 생기는
             # 1px 지터)를 다수 값으로 고정한다. 기본은 무동작(`temporal_stabilize` docstring).
             stabilize_cfg = fit_config.get("temporal_stabilize", {}) or {}
