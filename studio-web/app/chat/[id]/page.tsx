@@ -15,6 +15,7 @@ import { MessageList } from "@/components/chat/MessageList";
 import { ComposerBar } from "@/components/chat/ComposerBar";
 import { ErrorBanner } from "@/components/common/ErrorBanner";
 import { PreviewStage } from "@/components/preview/PreviewStage";
+import { describeChatError } from "@/lib/errorText";
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -78,7 +79,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     );
   }
 
-  const bannerMessage = error ?? (chat.status === "failed" ? chat.error : null);
+  const bannerMessage = error ?? (chat.status === "failed" && chat.error ? describeChatError(chat.error) : null);
 
   const progress = (
     <VStack gap={2}>
