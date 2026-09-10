@@ -72,3 +72,19 @@ uv pip install --python .venv/bin/python -e '.[dev]'
 ```
 
 画像生成のテストでは通信を置き換える。有料の画像生成やOrca実接続は、このテストとは別に確認する。変更時には会話の分離、過去の版の保持、時間調整による不要な画像生成がないこと、スマホでの操作と画像表示を確認する。自動検査が通ったことだけで絵やモーションを品質合格にしない。
+
+
+## 画面の操作確認
+
+PCは中央の作品と右側の会話を並べて使う。スマホは会話内の作品をタップすると大きく表示できる。制作状況はどちらの画面にも表示され、「経過」から詳細を確認できる。
+会話ごとの下書きは、このブラウザー内に保存する。過去の版は比較用に表示でき、修正依頼を送るには最新版へ戻る。
+
+画面の回帰テストはNode.jsとPlaywrightを使い、5種類の画面幅で下書き・版選択・進捗・通信失敗・拡大操作を確認する。検証用サーバーと差し替えたAPIだけを使い、作品の生成や実データの変更は行わない。
+
+```sh
+npm install --prefix /tmp/sprite-ui-tests playwright
+/tmp/sprite-ui-tests/node_modules/.bin/playwright install chromium
+NODE_PATH=/tmp/sprite-ui-tests/node_modules node tests/browser/chat_studio.mjs
+```
+
+既存のChromeを使う場合は `SPRITE_TEST_CHROME` に実行ファイルのパスを指定する。実機のSafariとソフトウェアキーボードの挙動は、別途端末で確認する。
