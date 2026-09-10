@@ -253,7 +253,7 @@ class Studio:
                 Image.new('RGB', (plan['cell'], plan['cell']), '#00ff00').save(folder / 'blank.png')
             request = {'cell': {'width': plan['cell'], 'height': plan['cell'], 'safe_margin': max(3, plan['cell']//12)},
                 'states': {kind: {'frames': plan['frames'], 'fps': plan['fps'], 'loop': kind not in ('attack', 'jump'), 'action': plan['prompt']}},
-                'fit': {'pixel_unfake': True, 'logical_height': plan['cell'], 'palette_size': plan['palette'], 'align_x': 'foot-centroid', 'align_y': 'bottom', 'ground_frames': False, 'outline': False,
+                'fit': {'pixel_unfake': True, 'logical_height': plan['cell'], 'palette_size': plan['palette'], 'align_x': 'foot-centroid', 'align_y': 'bottom', 'ground_frames': kind != 'jump', 'outline': False,
                     'pitch_policy': 'consensus', 'registration_reference': 'union', 'temporal_stabilize': {'enabled': True, 'threshold': 1}},
                 'style': 'Keep the reference character identity, proportions, costume, palette and crisp pixel clusters. Never enlarge the head. No antialiasing.'}
             atomic_json(folder / 'request.json', request)
