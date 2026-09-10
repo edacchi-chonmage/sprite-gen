@@ -2,7 +2,7 @@ import type { KeyboardEvent } from "react";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { Button } from "@astryxdesign/core/Button";
 import { VStack } from "@astryxdesign/core/VStack";
-import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
 
 type Props = {
   value: string;
@@ -21,17 +21,14 @@ export function ComposerBar({
   isSubmitting,
   isViewingPastVersion,
 }: Props) {
-  const disabledReason = isRunning
-    ? "制作中は送信できない"
-    : isSubmitting
-      ? "送信中"
-      : isViewingPastVersion
-        ? "過去の版を見ている間は送信できない"
-        : value === ""
-          ? "テキストを入力してね"
-          : null;
+  // 制作中は入力だけ受け付ける（送信は不可）。次の依頼を先に入力しておけるように、あえて無効化しない。
+  const hintMessage = isRunning
+    ? "制作中。次の依頼は入力しておけるよ"
+    : isViewingPastVersion
+      ? "過去の版を表示中。最新版に戻ると依頼できるよ"
+      : null;
 
-  const canSubmit = disabledReason === null;
+  const canSubmit = value.trim() !== "" && !isRunning && !isSubmitting && !isViewingPastVersion;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // IME変換中のEnterは無視する
@@ -44,25 +41,28 @@ export function ComposerBar({
 
   return (
     <VStack gap={1}>
-      <HStack gap={2} vAlign="end">
+      <div style={{ position: "relative", width: "100%" }}>
         <TextArea
           label="メッセージ"
           isLabelHidden
           value={value}
           onChange={onChange}
           onKeyDown={handleKeyDown}
-          isDisabled={isRunning || isSubmitting || isViewingPastVersion}
-          placeholder="指示を入力(Ctrl/⌘+Enterで送信)"
+          isDisabled={isSubmitting || isViewingPastVersion}
+          placeholder="作りたい絵や、直したい動きを伝えてね"
+          width="100%"
         />
-        <Button
-          label="送信"
-          size="lg"
-          isDisabled={!canSubmit}
-          isLoading={isSubmitting}
-          onClick={onSubmit}
-        />
-      </HStack>
-      {disabledReason && <span>{disabledReason}</span>}
+        <div style={{ position: "absolute", right: 8, bottom: 8 }}>
+          <Button
+            label="送信"
+            size="md"
+            isDisabled={!canSubmit}
+            isLoading={isSubmitting}
+            onClick={onSubmit}
+          />
+        </div>
+      </div>
+      {hintMessage && <Text type="supporting">{hintMessage}</Text>}
     </VStack>
   );
 }

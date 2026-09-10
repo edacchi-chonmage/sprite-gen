@@ -93,36 +93,40 @@ export function PreviewStage({ chat, version, versions, onSelectVersion, isMobil
         </HStack>
       )}
 
-      <HStack gap={2} align="center" wrap="wrap" width="100%">
-        {version?.animation && <Switch label="アニメで再生" value={showAnimation} onChange={setShowAnimation} size="sm" />}
-        {canCompare && <Switch label="比較" value={compare} onChange={setCompare} size="sm" />}
-        <Button label="縮小" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.step(1 / 1.4)}>
-          −
-        </Button>
-        <Button label="全体表示" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.fit()} />
-        <Button label="拡大" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.step(1.4)}>
-          ＋
-        </Button>
-        <Button label="拡大表示" size="lg" onClick={() => setLightbox({ src: displaySrc, alt: displayAlt })} />
-        <a
-          href={displaySrc}
-          download
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 32,
-            padding: "0 12px",
-            border: "1px solid #cbd2c9",
-            borderRadius: 8,
-            fontSize: 12,
-            textDecoration: "none",
-            color: "inherit",
-          }}
-        >
-          保存
-        </a>
-      </HStack>
+      <VStack gap={2} width="100%">
+        <HStack gap={2} align="center" wrap="wrap">
+          {version?.animation && <Switch label="アニメで再生" value={showAnimation} onChange={setShowAnimation} size="sm" />}
+          {canCompare && <Switch label="比較" value={compare} onChange={setCompare} size="sm" />}
+        </HStack>
+        <HStack gap={2} align="center" wrap="wrap">
+          <Button label="縮小" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.step(1 / 1.4)}>
+            −
+          </Button>
+          <Button label="全体表示" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.fit()} />
+          <Button label="拡大" size="lg" isDisabled={compare} onClick={() => canvasRef.current?.step(1.4)}>
+            ＋
+          </Button>
+          <Button label="拡大表示" size="lg" onClick={() => setLightbox({ src: displaySrc, alt: displayAlt })} />
+          <a
+            href={displaySrc}
+            download
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 32,
+              padding: "0 12px",
+              border: "1px solid #cbd2c9",
+              borderRadius: 8,
+              fontSize: 12,
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            保存
+          </a>
+        </HStack>
+      </VStack>
 
       <div style={{ flex: 1, minHeight: isMobile ? 220 : 320 }}>
         {compare && compareBaseSrc ? (

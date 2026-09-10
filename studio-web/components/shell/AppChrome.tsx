@@ -27,7 +27,8 @@ export function AppChrome({ children }: { children: ReactNode }) {
     reload();
   }, [currentChatId, chats, reload]);
 
-  const currentTitle = chats.find((c) => c.id === currentChatId)?.title;
+  const matchedChat = chats.find((c) => c.id === currentChatId);
+  const currentTitle = matchedChat ? matchedChat.title || "新しい作品" : undefined;
 
   return (
     <ViewStateProvider>

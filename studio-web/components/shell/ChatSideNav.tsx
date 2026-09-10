@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SideNav, SideNavHeading, SideNavSection, SideNavItem } from "@astryxdesign/core/SideNav";
+import { SideNav, SideNavSection, SideNavItem } from "@astryxdesign/core/SideNav";
 import { Button } from "@astryxdesign/core/Button";
 import { saveLastChatId } from "@/hooks/useChatList";
 import { NewChatDialog } from "./NewChatDialog";
@@ -32,14 +32,13 @@ export function ChatSideNav({ chats, currentChatId }: ChatSideNavProps) {
   return (
     <>
       <SideNav
-        header={<SideNavHeading heading="Sprite Studio" />}
         topContent={<Button label="新規作成" variant="secondary" width="100%" onClick={() => setIsNewChatOpen(true)} />}
       >
         <SideNavSection title="会話">
           {chats.map((chat) => (
             <SideNavItem
               key={chat.id}
-              label={chat.title || "無題の会話"}
+              label={chat.title || "新しい作品"}
               isSelected={chat.id === currentChatId}
               onClick={() => handleSelect(chat.id)}
             />

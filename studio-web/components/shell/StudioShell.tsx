@@ -19,7 +19,11 @@ type StudioShellProps = {
 export function StudioShell({ sideNav, mobileNav, chatTitle, children }: StudioShellProps) {
   return (
     <AppShell
-      topNav={<TopNav heading={<TopNavHeading heading="Sprite Studio" subheading={chatTitle} />} />}
+      topNav={
+        <TopNav
+          heading={<TopNavHeading heading="Sprite Studio" subheading={chatTitle} data-testid="chat-topnav-heading" />}
+        />
+      }
       sideNav={sideNav}
       // MobileNavで包まないと単なる子要素として本文中にそのまま描画されてしまう
       // (ドロワーとしてのオフキャンバス表示・背景オーバーレイはMobileNav自身が担う)

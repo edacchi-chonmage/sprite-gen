@@ -16,7 +16,8 @@ export function VersionCard({ version, index, isLatest, onSelect }: Props) {
   return (
     <ClickableCard label={label} onClick={() => onSelect(version.id)}>
       <HStack gap={2} vAlign="center">
-        <Thumbnail src={version.image} alt={version.title} />
+        {/* image はスプライトシート（横長）なので、サムネはアニメを優先する */}
+        <Thumbnail src={version.animation ?? version.image} alt={version.title} />
         <HStack gap={1} wrap="wrap">
           <Badge variant={isLatest ? "success" : "neutral"} label={`第${index}版`} />
           {isLatest && <Badge variant="info" label="最新" />}

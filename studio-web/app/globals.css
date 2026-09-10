@@ -1,3 +1,23 @@
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
 @import "@astryxdesign/theme-neutral/theme.css";
+
+/* TopNavの会話タイトル(subheading)は、TopNav内の各スロットがflexで縮まないため
+   画面外に切れて見える（スクロールも出ないのでページ全体としては気づきにくい）。
+   flexの子にmin-width:0を入れて縮められるようにした上で、subheading本文を1行省略にする。
+   astryx-top-nav / astryx-top-nav-headingは@astryxdesign/coreの公開クラス名（安定）。
+   最後のセレクタだけ0.5.4内部のハッシュ化クラス名に依存する対症療法（ライブラリ更新時は要見直し）。 */
+.astryx-top-nav *:has(> .astryx-top-nav-heading) {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.astryx-top-nav-heading,
+.astryx-top-nav-heading * {
+  min-width: 0;
+}
+[data-testid="chat-topnav-heading"] .x141an7d.x1ltkj2j.xv1l7n4.x1hl2dhg.xb3r6kr.xlyipyv.xuxw1ft {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

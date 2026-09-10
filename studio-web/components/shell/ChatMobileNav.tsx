@@ -41,7 +41,7 @@ export function ChatMobileNav({ chats, currentChatId }: ChatMobileNavProps) {
         {chats.map((chat) => (
           <SideNavItem
             key={chat.id}
-            label={chat.title || "無題の会話"}
+            label={chat.title || "新しい作品"}
             isSelected={chat.id === currentChatId}
             onClick={() => handleSelect(chat.id)}
           />

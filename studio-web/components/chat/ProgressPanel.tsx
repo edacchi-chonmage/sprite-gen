@@ -69,45 +69,66 @@ export function ProgressPanel({ chat }: Props) {
   const review = latestVersion?.review;
   const [isEventsOpen, setIsEventsOpen] = useState(false);
 
+  const eventsDialog = (
+    <Dialog isOpen={isEventsOpen} onOpenChange={setIsEventsOpen} purpose="info">
+      <DialogHeader title="経過ログ" onOpenChange={setIsEventsOpen} />
+      <VStack gap={2} padding={3}>
+        {chat.events.length === 0 ? (
+          <span>まだログが無い</span>
+        ) : (
+          chat.events.map((event, i) => (
+            <div key={i}>
+              <span>{event.time}</span> {event.text}
+            </div>
+          ))
+        )}
+      </VStack>
+    </Dialog>
+  );
+
+  // failedはErrorBanner（呼び出し側が表示）だけにするため、ここでは何も出さない。
+  if (chat.status === "failed") {
+    return eventsDialog;
+  }
+
+  if (chat.status === "running") {
+    return (
+      <VStack gap={2}>
+        <Stepper activeStep={activeStep} label="制作の工程">
+          {PHASE_STEPS.map((label, i) => (
+            <Step key={label} step={i} label={label} />
+          ))}
+        </Stepper>
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          {elapsedLabel && <span>経過 {elapsedLabel}</span>}
+          <span>{chat.phase}</span>
+        </HStack>
+        {eventsDialog}
+      </VStack>
+    );
+  }
+
   return (
     <VStack gap={2}>
-      <Stepper activeStep={activeStep} label="制作の工程">
-        {PHASE_STEPS.map((label, i) => (
-          <Step key={label} step={i} label={label} />
-        ))}
-      </Stepper>
-      <HStack gap={2} vAlign="center" wrap="wrap">
-        {elapsedLabel && <span>経過 {elapsedLabel}</span>}
-        {chat.status === "idle" && latestVersion && (
-          <Badge variant="success" label="生成完了" />
-        )}
-        {review &&
-          (review.issues.length > 0 ? (
-            <Badge variant="warning" label={`要確認 (${review.issues.length})`} />
-          ) : (
-            <Badge variant="success" label={latestVersion?.review_status} />
-          ))}
+      <span>{chat.phase}</span>
+      <HStack gap={2} vAlign="center" hAlign="between" wrap="wrap">
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          {latestVersion && <Badge variant="success" label="生成完了" />}
+          {review &&
+            (review.issues.length > 0 ? (
+              <Badge variant="warning" label={`要確認 (${review.issues.length})`} />
+            ) : (
+              <Badge variant="success" label={latestVersion?.review_status} />
+            ))}
+        </HStack>
         <Button
           label="経過を見る"
-          variant="ghost"
+          variant="secondary"
           size="sm"
           onClick={() => setIsEventsOpen(true)}
         />
       </HStack>
-      <Dialog isOpen={isEventsOpen} onOpenChange={setIsEventsOpen} purpose="info">
-        <DialogHeader title="経過ログ" onOpenChange={setIsEventsOpen} />
-        <VStack gap={2} padding={3}>
-          {chat.events.length === 0 ? (
-            <span>まだログが無い</span>
-          ) : (
-            chat.events.map((event, i) => (
-              <div key={i}>
-                <span>{event.time}</span> {event.text}
-              </div>
-            ))
-          )}
-        </VStack>
-      </Dialog>
+      {eventsDialog}
     </VStack>
   );
 }

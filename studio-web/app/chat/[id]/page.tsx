@@ -132,6 +132,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      gap: 8,
                       width: "100%",
                       padding: "8px 16px",
                       border: "none",
@@ -142,7 +143,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                       cursor: "pointer",
                     }}
                   >
-                    作品 {versionLabel}
+                    {selectedVersion && (
+                      <img
+                        src={selectedVersion.animation ?? selectedVersion.image}
+                        alt=""
+                        width={40}
+                        height={40}
+                        style={{ imageRendering: "pixelated", objectFit: "contain", borderRadius: 4, flexShrink: 0, background: "#e3e7df" }}
+                      />
+                    )}
+                    {versionLabel}
                   </button>
                 )}
                 <div style={{ padding: "12px 16px calc(12px + env(safe-area-inset-bottom))" }}>{composer}</div>
