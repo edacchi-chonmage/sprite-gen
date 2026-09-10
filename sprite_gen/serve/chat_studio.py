@@ -353,7 +353,7 @@ class Studio:
                 self.change(chat_id, lambda c: c.update(status='idle', phase='回答したよ'))
                 return
             source = self.source(chat, library, plan['reference_id'])
-            self.event(chat_id, '再生順序と間を調整中' if plan['action']=='timing' else 'Images 2.5で画像を生成中')
+            self.event(chat_id, '再生順序と間を調整中' if plan['action']=='timing' else f'Images 2.5（{DEFAULT_MODEL}）で画像を生成中')
             pipeline, kind = self.create_pixels(plan, folder, source) if plan['action']=='generate' else self.edit_motion(plan, folder, source)
             self.event(chat_id, '画像を切り出して再生を作成中')
             if pipeline:

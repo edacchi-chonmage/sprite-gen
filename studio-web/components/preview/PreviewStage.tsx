@@ -84,7 +84,11 @@ export function PreviewStage({ chat, version, versions, onSelectVersion, isMobil
 
   return (
     <VStack height="100%" gap={2} minHeight={0} width="100%">
-      {reference && <Text type="supporting">参照：{reference.title}</Text>}
+      {(reference || version?.image_model) && (
+        <Text type="supporting">
+          {[reference && `参照：${reference.title}`, version?.image_model && `画像モデル：${version.image_model}`].filter(Boolean).join(" · ")}
+        </Text>
+      )}
 
       {isPastVersion && (
         <HStack gap={2} align="center" wrap="wrap" width="100%">
