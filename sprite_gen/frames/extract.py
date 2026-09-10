@@ -1414,6 +1414,36 @@ def _best_phase(component: Image.Image, pitch: tuple[float, float]) -> tuple[flo
     return best
 
 
+def _consensus_phase(images: list, pitch: tuple[float, float]) -> tuple[float, float]:
+    """`_best_phase` 의 다중 프레임 버전 — 여러 컴포넌트가 공유할 위상 하나를,
+    프레임별 셀 균일도의 **합**을 최소화하는 위상으로 8단계 탐색해 고른다 (결정론).
+
+    fit.pitch_policy="consensus" 전용. 프레임마다 `_best_phase` 를 따로 부르면
+    같은 스트립 안에서도 측정 노이즈로 위상이 미세하게 갈려(프레임 간 1px 단위
+    윤곽 지터의 원인) — 여기서는 행 전체에 가장 맞는 위상 하나로 통일한다."""
+    best = (0.0, 0.0)
+    best_score = None
+    steps = 8
+    rows_list = [_grid_rows(component) for component in images]
+    sizes = [(component.width, component.height) for component in images]
+    split_caches: list[dict[tuple, list[list[int]]]] = [dict() for _ in images]
+    for i in range(steps):
+        for j in range(steps):
+            phase = (pitch[0] * i / steps, pitch[1] * j / steps)
+            total = 0.0
+            for (w, h), rows, split_cache in zip(sizes, rows_list, split_caches):
+                xs = tuple(_grid_edges(w, pitch[0], phase[0]))
+                ys = tuple(_grid_edges(h, pitch[1], phase[1]))
+                splits = split_cache.get(xs)
+                if splits is None:
+                    splits = split_cache[xs] = _grid_row_splits(rows[0], xs, w)
+                total += _grid_score_edges(rows, w, h, xs, ys, splits)
+            if best_score is None or total < best_score:
+                best_score = total
+                best = phase
+    return best
+
+
 def arbitrate_pitch(images: list, detect_pitch: tuple[float, float],
                     runlen_pitch: tuple[float, float],
                     tag: str, warnings_out: list) -> tuple[tuple[float, float], str]:
@@ -1802,10 +1832,14 @@ def conform_row_logical(images: list, logical_width: int, logical_height: int, d
     return [binarize_alpha(s) for s in snapped]
 
 
-def register_row_frames(frames: list, slack_x: int = 8, slack_y: int = 3) -> list:
+def register_row_frames(frames: list, slack_x: int = 8, slack_y: int = 3,
+                        reference: str = "first") -> list:
     # 프레임 간 정합: 로코모션에서 다리는 원래 움직이므로, 안정 부위(상체 65%)의
     # 알파 겹침을 최대화하는 정수 시프트를 프레임마다 찾아 공통 캔버스에 앉힌다.
     # 이후 배치는 행 공통(union) 기준 1회 계산 → 프레임 간 몸통 흔들림 제거.
+    if reference not in ("first", "union"):
+        raise SystemExit(
+            f"register_row_frames reference must be 'first' or 'union' (got {reference!r})")
     cropped = []
     for frame in frames:
         bbox = frame.getbbox()
@@ -1816,23 +1850,40 @@ def register_row_frames(frames: list, slack_x: int = 8, slack_y: int = 3) -> lis
     def base_pos(f):
         return ((canvas_width - f.width) // 2, canvas_height - slack_y - f.height)
 
-    reference = cropped[0]
-    ref_x, ref_y = base_pos(reference)
-    upper_limit = ref_y + int(reference.height * 0.65)
-    ref_pixels = reference.load()
-    ref_mask = set()
-    for y in range(reference.height):
-        if ref_y + y >= upper_limit:
-            break
-        for x in range(reference.width):
-            if ref_pixels[x, y][3] >= 128:
-                ref_mask.add((ref_x + x, ref_y + y))
+    def upper_mask(f, base_x, base_y, limit):
+        pixels = f.load()
+        mask = set()
+        for y in range(f.height):
+            if base_y + y >= limit:
+                break
+            for x in range(f.width):
+                if pixels[x, y][3] >= 128:
+                    mask.add((base_x + x, base_y + y))
+        return mask
+
+    if reference == "union":
+        # 기준을 frame-0 고정에서 전 프레임 상체 65% 알파의 합집합으로 바꾼다 —
+        # frame-0 자체가 outlier 포즈면 나머지 전부가 그쪽으로 끌려가는 문제의
+        # 대안(옵트인, fit.registration_reference="union"). 0번 프레임도 정렬 대상에
+        # 넣는다(기준이 더 이상 0번 자신이 아니므로).
+        upper_limit = max(base_pos(f)[1] + int(f.height * 0.65) for f in cropped)
+        ref_mask: set = set()
+        for f in cropped:
+            base_x, base_y = base_pos(f)
+            ref_mask |= upper_mask(f, base_x, base_y, upper_limit)
+        align_from = 0
+    else:
+        reference_frame = cropped[0]
+        ref_x, ref_y = base_pos(reference_frame)
+        upper_limit = ref_y + int(reference_frame.height * 0.65)
+        ref_mask = upper_mask(reference_frame, ref_x, ref_y, upper_limit)
+        align_from = 1
 
     registered = []
     for index, frame in enumerate(cropped):
         base_x, base_y = base_pos(frame)
         best_dx, best_dy = 0, 0
-        if index > 0 and ref_mask:
+        if index >= align_from and ref_mask:
             pixels = frame.load()
             points = [
                 (x, y)
@@ -1859,6 +1910,38 @@ def register_row_frames(frames: list, slack_x: int = 8, slack_y: int = 3) -> lis
     if bbox is not None:
         registered = [canvas.crop(bbox) for canvas in registered]
     return registered
+
+
+def temporal_stabilize(frames: list, threshold: int) -> list:
+    """행(같은 state) 안에서, 좌표별로 다수와 다른 프레임이 threshold 장 이하면
+    그 소수 프레임의 픽셀을 다수 값으로 스냅한다 — 프레임별 격자 위상의 미세한
+    차이가 만드는 1px 단위 윤곽 지터(전 프레임 중 1장만 어긋나는 패턴)를 없앤다.
+
+    옵트인(fit.temporal_stabilize, 기본 threshold<=0=무동작): 진짜 동작(포즈 교대로
+    절반씩 갈리는 좌표)까지 지우면 애니메이션이 멎어 보이므로, 다수가 과반이고
+    소수가 threshold 이하일 때만 스냅한다 — 절반씩 갈리는 좌표는 건드리지 않는다."""
+    if threshold <= 0 or len(frames) < 3:
+        return frames
+    width, height = frames[0].size
+    if any(f.size != (width, height) for f in frames):
+        raise ValueError("temporal_stabilize requires same-size frames")
+    n = len(frames)
+    source = [f.load() for f in frames]
+    outputs = [f.copy() for f in frames]
+    out_pixels = [o.load() for o in outputs]
+    for y in range(height):
+        for x in range(width):
+            values = [source[i][x, y] for i in range(n)]
+            counts: dict[tuple, int] = {}
+            for v in values:
+                counts[v] = counts.get(v, 0) + 1
+            majority_value, majority_count = max(counts.items(), key=lambda kv: kv[1])
+            minority_count = n - majority_count
+            if majority_count > minority_count and minority_count <= threshold:
+                for i in range(n):
+                    if values[i] != majority_value:
+                        out_pixels[i][x, y] = majority_value
+    return outputs
 
 
 def _content_center_top(sprite: Image.Image, cell_height: int) -> int:
@@ -2870,6 +2953,24 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
         (consensus_x, consensus_y), _pitch_src = arbitrate_pitch(
             images, (consensus_x, consensus_y),
             (_runlen_consensus(0), _runlen_consensus(1)), tag, all_warnings)
+        # 옵트인: fit.pitch_policy="consensus" 는 이 스트립(행)의 모든 프레임에
+        # 합의 피치·단일 공유 위상을 강제한다 — 기본값 "own" 은 위 own-우선
+        # 로직 그대로라 완전 후방호환이다. 프레임마다 그린 블록 크기가 실제로
+        # 수 %씩 다른(own 검출값이 패밀리 안이라 그대로 채택되는) 생성물에서,
+        # 그 수 % 차가 프레임마다 다른 논리 크기/윤곽 1px 지터로 나타나는 것을
+        # 막는 용도다 (조사: idle 4코마 y피치 5.52/5.52/5.38/5.52).
+        pitch_policy = str(fit_config.get("pitch_policy", "own")).lower()
+        if pitch_policy not in ("own", "consensus"):
+            raise SystemExit(
+                f"fit.pitch_policy must be 'own' or 'consensus' (got {pitch_policy!r})")
+        consensus_phase: tuple[float, float] | None = None
+        if pitch_policy == "consensus":
+            if min(consensus_x, consensus_y) >= 2.0:
+                consensus_phase = _consensus_phase(images, (consensus_x, consensus_y))
+            else:
+                all_warnings.append(
+                    f"{tag}: fit.pitch_policy=consensus requested but the strip has no "
+                    f"confident consensus pitch — falling back to per-frame detection")
         # 프레임 자체 검출 격자가 1순위 진실이다 (maintainer 2026-07-20, plan
         # sprite-gen/per-frame-pixel-grid): 합의 피치를 프레임에 강제하면 측정차
         # (0.5px/셀 수준)가 폭 전체에 누적돼 경계가 블록 중앙을 지난다 (회귀
@@ -2886,7 +2987,9 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
         cut_edges: list[tuple[list[int], list[int]] | None] = []
         used_pitches: list[tuple[float, float]] = []
         for index, (component, ((own_x, own_y), _own_phase)) in enumerate(zip(images, grids)):
-            if min(own_x, own_y) >= 2.0:
+            if consensus_phase is not None:
+                use_x, use_y = consensus_x, consensus_y
+            elif min(own_x, own_y) >= 2.0:
                 (use_x, use_y), outlier = resolve_frame_pitch(
                     (own_x, own_y), (consensus_x, consensus_y))
                 if outlier:
@@ -2912,7 +3015,9 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
             # ±pitch/3 창 안에서만 절단선을 당기므로 이 크기의 위상 오차는 구조적으로
             # 복구되지 않고, 눈 4행이 3행으로 병합됐다. 피치가 고정된 상태에서 위상만
             # 비교하므로 균일도 지표의 '거친 격자 편애' 편향은 개입하지 않는다.
-            frame_phase = _best_phase(component, (use_x, use_y))
+            # pitch_policy="consensus" 는 이 실측 위상도 프레임별이 아니라 행 전체에서
+            # 한 번 고른 공유 위상(`consensus_phase`)을 쓴다.
+            frame_phase = consensus_phase if consensus_phase is not None else _best_phase(component, (use_x, use_y))
             xs = _grid_edges(component.width, use_x, frame_phase[0])
             ys = _grid_edges(component.height, use_y, frame_phase[1])
             xs, ys = refine_edges_to_boundaries(component, xs, ys, (use_x, use_y))
@@ -3013,7 +3118,9 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
             parts.append(part)
         if parts is None:
             continue
-        registered = register_row_frames([f for p in parts for f in p["logical"]])
+        registered = register_row_frames(
+            [f for p in parts for f in p["logical"]],
+            reference=str(fit_config.get("registration_reference", "first")).lower())
         labels = None
         takes_summary = None
         if len(parts) > 1:
@@ -3075,6 +3182,15 @@ def _run_locked(args: argparse.Namespace, run_dir: Path):
                     top, safe_margin_y, ground_frames, align_y)
                 for frame in quantized
             ]
+            # 옵트인: 행 전체에서 threshold 장 이하만 어긋나는 좌표(격자 위상 잔차로 생기는
+            # 1px 지터)를 다수 값으로 고정한다. 기본은 무동작(`temporal_stabilize` docstring).
+            stabilize_cfg = fit_config.get("temporal_stabilize", {}) or {}
+            if not isinstance(stabilize_cfg, dict):
+                raise SystemExit(
+                    "fit.temporal_stabilize must be an object like "
+                    "{\"enabled\": true, \"threshold\": 1} (or omitted)")
+            if stabilize_cfg.get("enabled"):
+                frames = temporal_stabilize(frames, int(stabilize_cfg.get("threshold", 1)))
             # 전/후 비교 쌍둥이: 픽셀 언페이크 프레임의 최종 콘텐츠 bbox 와 같은 풋프린트에
             # 원본 컴포넌트를 앉힌다 (plain=셀 크기 굽기용, orig=S×셀 표시용). 빈 프레임은
             # 관측 가능하게 스킵 — 조용한 폴백 없음.
